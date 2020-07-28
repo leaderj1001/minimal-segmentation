@@ -46,7 +46,8 @@ def train(train_loader, model, optimizer, criterion, scheduler, args):
             img, label = img.cuda(), label.cuda()
 
         logit = model(img)
-        loss = criterion.CrossEntropyLoss(logit, label)
+        # loss = criterion.CrossEntropyLoss(logit, label)
+        loss = criterion(logit, label)
 
         optimizer.zero_grad()
         loss.backward()
@@ -64,7 +65,10 @@ def main(args):
     model = DeepLabV3Plus()
     if args.cuda:
         model = model.cuda()
-    criterion = SegmentationLosses(weight=args.weight_labels, cuda=True)
+    # criterion = SegmentationLosses(weight=args.weight_labels, cuda=True)
+    criterion = nn.CrossEntropyLoss(ignore_index=args.ignore_mask, weight=args.weight_labels)
+    if args.cuda:
+        criterion = criterion.cuda()
 
     backbone_params = nn.ParameterList()
     decoder_params = nn.ParameterList()
