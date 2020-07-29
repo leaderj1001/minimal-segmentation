@@ -95,9 +95,9 @@ class CityscapeDataset(data.Dataset):
 
 def load_data(args):
     train_dataset = CityscapeDataset(split='train')
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, drop_last=True, pin_memory=True)
 
     val_dataset = CityscapeDataset(split='val')
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=1, num_workers=args.num_workers, drop_last=True)
 
     return train_loader, val_loader

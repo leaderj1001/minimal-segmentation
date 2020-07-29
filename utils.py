@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import numpy as np
+np.seterr(divide='ignore', invalid='ignore')
 from PIL import Image, ImageOps, ImageFilter, ImageEnhance
 import os
 
@@ -318,3 +319,66 @@ class SegmentationLosses(object):
             return loss.mean()
         else:
             return loss.sum()
+
+
+class SemanticSegmentationMetrics:
+    def __init__(self, FLAGS):
+        self.class_num = FLAGS.n_classes
+        self.ignore_mask = FLAGS.ignore_mask
+        self.confusion_matrix = np.zeros((self.class_num, self.class_num))
+        self.class_iou = []
+        self.mean_iou = 0.0
+        self.accuracy = 0.0
+
+    def __call__(self, prediction, label, mode='train'):
+        # prediction = prediction['semantic_logit']
+        # label = label['semantic_logit']
+
+        self.compute_confusion_matrix_and_add_up(label, prediction)
+        if mode == 'train':
+            accuracy = self.compute_pixel_accuracy()
+            metric_dict = {'accuracy': accuracy}
+        else:
+            class_iou = self.compute_class_iou()
+            mean_iou = self.compute_mean_iou()
+            accuracy = self.compute_pixel_accuracy()
+            metric_dict = {'mean_iou': mean_iou, 'accuracy': accuracy} #, 'class_iou': dict()}
+            # for i, iou in enumerate(class_iou):
+            #     metric_dict['class_iou']['class_' + str(i)] = iou
+        return metric_dict
+
+    def clear(self):
+        self.confusion_matrix = np.zeros((self.class_num, self.class_num))
+
+    def compute_confusion_matrix(self, label, image):
+        if len(label.shape) == 4:
+            label = torch.argmax(label, dim=1)
+        if len(image.shape) == 4:
+            image = torch.argmax(image, dim=1)
+
+        label = label.flatten().cpu().numpy().astype(np.int64)
+        image = image.flatten().cpu().numpy().astype(np.int64)
+
+        valid_indices = (label != self.ignore_mask) & (0 <= label) & (label < self.class_num)
+
+        enhanced_label = self.class_num * label[valid_indices].astype(np.int32) + image[valid_indices]
+        confusion_matrix = np.bincount(enhanced_label, minlength=self.class_num * self.class_num)
+        confusion_matrix = np.reshape(confusion_matrix, (self.class_num, self.class_num))
+
+        return confusion_matrix
+
+    def compute_confusion_matrix_and_add_up(self, label, image):
+        self.confusion_matrix += self.compute_confusion_matrix(label, image)
+
+    def compute_pixel_accuracy(self):
+        return np.sum(np.diag(self.confusion_matrix)) / np.sum(self.confusion_matrix)
+
+    def compute_class_iou(self):
+        class_iou = np.diag(self.confusion_matrix) / (
+                    np.sum(self.confusion_matrix, axis=0) + np.sum(self.confusion_matrix, axis=1) - np.diag(
+                self.confusion_matrix))
+        return class_iou
+
+    def compute_mean_iou(self):
+        class_iou = self.compute_class_iou()
+        return np.nanmean(class_iou)

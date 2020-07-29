@@ -1,3 +1,5 @@
+import torch
+
 import os
 from PIL import Image
 import numpy as np
@@ -23,22 +25,49 @@ def encode_semantic_label(label, ignore_mask=255):
     return encoded_label.astype(np.int32)
 
 
-def main():
-    base_dir = 'E:/segmentation'
+def decode_semantic_label(label):
+    color_map = [[128, 64, 128], [244, 35, 232], [70, 70, 70], [102, 102, 156], [190, 153, 153], [153, 153, 153],
+                 [250, 170, 30], [220, 220, 0], [107, 142, 35], [152, 251, 152], [70, 130, 180], [220, 20, 60],
+                 [255, 0, 0], [0, 0, 142], [0, 0, 70], [0, 60, 100], [0, 80, 100], [0, 0, 230], [119, 11, 32]]
+    if type(label) == np.ndarray:
+        if len(label.shape) == 3:
+            label = np.argmax(label, axis=0)
+
+        decoded_label = np.zeros((*label.shape, 3))
+        for i in range(len(color_map)):
+            decoded_label[label == i] = color_map[i]
+
+        return decoded_label
+
+    elif type(label) == torch.Tensor:
+        if len(label.shape) == 3:
+            label = torch.argmax(label, dim=0)
+        color_map = torch.tensor(color_map)
+
+        decoded_label = torch.zeros((*label.shape, 3)).long()
+        for i in range(len(color_map)):
+            decoded_label[label == i] = color_map[i]
+
+        return decoded_label
+
+
+def main(args):
+    base_dir = './dataset/{}'.format(args.dataset)
     image_dir = os.path.join(base_dir, 'leftImg8bit_trainvaltest', 'leftImg8bit')
     gt_dir = os.path.join(base_dir, 'gtFine_trainvaltest', 'gtFine')
     split = ['train', 'val', 'test']
 
-    if not os.path.isdir('E:/segmentation/Image'):
-        os.mkdir('E:/segmentation/Image')
-    if not os.path.isdir('E:/segmentation/Label'):
-        os.mkdir('E:/segmentation/Label')
-    if not os.path.isdir('E:/segmentation/Annotation'):
-        os.mkdir('E:/segmentation/Annotation')
+    prepared_image = '{}/Image'.format(base_dir)
+    prepared_label = '{}/Label'.format(base_dir)
+    prepared_annotation = '{}/Annotation'.format(base_dir)
 
-    prepared_image = './Image'
-    prepared_label = './Label'
-    prepared_annotation = './Annotation'
+    if not os.path.isdir(prepared_image):
+        os.mkdir(prepared_image)
+    if not os.path.isdir(prepared_label):
+        os.mkdir(prepared_label)
+    if not os.path.isdir(prepared_annotation):
+        os.mkdir(prepared_annotation)
+
     for _ in split:
         sample = {}
         count = 0
@@ -76,4 +105,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    from config import load_config
+    args = load_config()
+    main(args)

@@ -63,7 +63,7 @@ class DeepLabV3Plus(nn.Module):
         super(DeepLabV3Plus, self).__init__()
         self.out_channels = 256
 
-        self.backbone = resnet101(pretrained=True, replace_stride_with_dilation=[False, False, True])
+        self.backbone = resnet101(pretrained=True, replace_stride_with_dilation=[False, False, False])
         self.stem = nn.Sequential(
             *list(self.backbone.children())[:4]
         )
@@ -78,28 +78,36 @@ class DeepLabV3Plus(nn.Module):
 
         self.aspp = AtrousSpatialPyramidPooling(2048, self.out_channels)
 
-        self.conv = nn.Sequential(
+        self.decoder = nn.Sequential(
             ConvBlock(self.low_level_features_out_channels + self.out_channels, self.out_channels, kernel_size=3),
             nn.Dropout(0.5),
             ConvBlock(self.out_channels, self.out_channels, kernel_size=3),
-            nn.Dropout(0.5),
+            nn.Dropout(0.1),
             nn.Conv2d(self.out_channels, n_classes, kernel_size=1),
         )
 
-    def forward(self, x):
-        out = self.stem(x)
-        backbone_out1 = self.block1(out)
-        backbone_out2 = self.block2(backbone_out1)
-        backbone_out3 = self.block3(backbone_out2)
-        backbone_out4 = self.block4(backbone_out3)
+    def forward(self, images):
+        outs = []
+        for key in images.keys():
+            x = images[key]
+            out = self.stem(x)
+            backbone_out1 = self.block1(out)
+            backbone_out2 = self.block2(backbone_out1)
+            backbone_out3 = self.block3(backbone_out2)
+            backbone_out4 = self.block4(backbone_out3)
 
-        low_level_features = self.low_level_features_conv(backbone_out1)
+            low_level_features = self.low_level_features_conv(backbone_out1)
 
-        out = self.aspp(backbone_out4)
-        out = F.interpolate(out, size=low_level_features.size()[-2:], mode='bilinear', align_corners=False)
+            out = self.aspp(backbone_out4)
+            out = F.interpolate(out, size=low_level_features.size()[-2:], mode='bilinear', align_corners=False)
 
-        out = torch.cat([out, low_level_features], dim=1)
-        out = self.conv(out)
-        out = F.interpolate(out, size=x.size()[-2:], mode='bilinear', align_corners=True)
+            out = torch.cat([out, low_level_features], dim=1)
+            out = self.decoder(out)
+            out = F.interpolate(out, size=images['original_scale'].size()[-2:], mode='bilinear', align_corners=True)
+
+            if 'flip' == key:
+                out = torch.flip(out, dims=[-1])
+            outs.append(out)
+        out = torch.stack(outs, dim=-1).mean(dim=-1)
 
         return out
