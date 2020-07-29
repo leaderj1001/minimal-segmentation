@@ -13,7 +13,7 @@ import json
 class CityscapeDataset(data.Dataset):
     def __init__(self, args=None, transform=None, random_horizontal_flip=True,
                  random_gaussian_blur=True, random_enhance=True, split='train'):
-        self.base_dir = 'C:/Users/myeongjun/Desktop/Pytorch-Segmentation-master/datasets/dataset_dir/cityscapes'
+        self.base_dir = 'dataset/{}'.format(args.dataset)
         self.images_dir = os.path.join(self.base_dir, 'Images')
         self.labels_dir = os.path.join(self.base_dir, 'Labels')
         self.annotations_dir = os.path.join(self.base_dir, 'annotations')
