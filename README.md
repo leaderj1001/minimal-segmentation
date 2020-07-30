@@ -9,9 +9,7 @@
 
 | Datasets | Model | Mean IoU |
 | :---: | :---: | :---: |
-Cityscape | DeepLabV3+ | - |
+Cityscape | DeepLabV3+ | 76.074 |
 
 ## Todo
   - Distributed
-  - Inference
-  - Experiment
