@@ -105,7 +105,7 @@ class DeepLabV3Plus(nn.Module):
             out = self.decoder(out)
             out = F.interpolate(out, size=images['original_scale'].size()[-2:], mode='bilinear', align_corners=True)
 
-            if 'flip' == key:
+            if 'flip' in key:
                 out = torch.flip(out, dims=[-1])
             outs.append(out)
         out = torch.stack(outs, dim=-1).mean(dim=-1)
