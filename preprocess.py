@@ -34,7 +34,7 @@ class CityscapeDataset(data.Dataset):
         scale_range = [0.5, 2.0]
         ignore_mask = 255
         multi_scale = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75]
-        flip = False
+        flip = True
 
         if transform is None:
             if split == 'train':
